@@ -4,6 +4,8 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
 import openai
+import requests
+from fastapi.responses import Response
 
 load_dotenv()
 
@@ -20,8 +22,8 @@ app.add_middleware(
 
 # Initialize Supabase client
 supabase: Client = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
+    supabase_url=os.getenv("SUPABASE_URL"),
+    supabase_key=os.getenv("SUPABASE_KEY")
 )
 
 @app.get("/api/bloodwork/{patient_id}")
@@ -65,5 +67,41 @@ async def summarize_concerns(concerns: list):
             ]
         )
         return {"summary": response.choices[0].message.content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/text-to-speech")
+async def text_to_speech(text: str):
+    try:
+        ELEVEN_LABS_API_KEY = os.getenv("ELEVEN_LABS_API_KEY")
+        VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Default voice ID, you can change this
+        
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
+        
+        headers = {
+            "Accept": "audio/mpeg",
+            "Content-Type": "application/json",
+            "xi-api-key": ELEVEN_LABS_API_KEY
+        }
+        
+        data = {
+            "text": text,
+            "model_id": "eleven_monolingual_v1",
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost": 0.5
+            }
+        }
+        
+        response = requests.post(url, json=data, headers=headers)
+        
+        if response.status_code == 200:
+            return Response(
+                content=response.content,
+                media_type="audio/mpeg"
+            )
+        else:
+            raise HTTPException(status_code=response.status_code, detail="Text-to-speech conversion failed")
+            
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

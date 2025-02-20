@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { usePatient } from '../context/PatientContext';
 
 const AllResults = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { patientId } = usePatient();
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -18,7 +20,7 @@ const AllResults = () => {
     };
 
     fetchResults();
-  }, []);
+  }, [patientId]);
 
   if (loading) return <div>Loading...</div>;
 

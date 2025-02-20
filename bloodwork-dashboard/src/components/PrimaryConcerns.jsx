@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { usePatient } from '../context/PatientContext';
 
 const PrimaryConcerns = () => {
   const [concerns, setConcerns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
+  const { patientId } = usePatient();
 
   useEffect(() => {
     const fetchConcerns = async () => {
@@ -20,20 +22,29 @@ const PrimaryConcerns = () => {
     };
 
     fetchConcerns();
-  }, []);
+  }, [patientId]);
 
   const handleVoicePrompt = async () => {
     try {
       const response = await axios.post('/api/summarize-concerns', concerns);
       setSummary(response.data.summary);
       
-      // Text-to-speech
-      const speech = new SpeechSynthesisUtterance(response.data.summary);
+      // ElevenLabs text-to-speech
       setIsPlaying(true);
-      speech.onend = () => setIsPlaying(false);
-      window.speechSynthesis.speak(speech);
+      const audioResponse = await axios.post('/api/text-to-speech', response.data.summary, {
+        responseType: 'blob'
+      });
+      const audioBlob = new Blob([audioResponse.data], { type: 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audio.onended = () => {
+        setIsPlaying(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.play();
     } catch (error) {
       console.error('Error getting summary:', error);
+      setIsPlaying(false);
     }
   };
 
